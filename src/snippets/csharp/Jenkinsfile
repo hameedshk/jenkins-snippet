@@ -45,8 +45,8 @@ pipeline {
                 sh "dotnet build ${csproj_path}"
             }
         }
-        // if you have unit tests defined uncomment the following to have them run
-        
+
+        // if you have unit tests defined uncomment the following to have them run        
         stage ('unit tests'){
             steps{
                 sh "dotnet test ${test_csproj_path}"

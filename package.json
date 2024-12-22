@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "jenkins-snippet.helloWorld",
-        "title": "Hello World"
+        "command": "jenkins-snippet.jenkins-snippet",
+        "title": "jenkins-snippet"
       }
     ]
   },
