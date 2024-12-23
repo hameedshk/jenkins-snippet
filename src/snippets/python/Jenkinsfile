@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'JDK11'       // Replace 'JDK11' with the name of the JDK configured in Jenkins
+        maven 'Maven3'    // Replace 'Maven3' with the name of the Maven installation in Jenkins
+    }
+
+    environment {
+        PROJECT_NAME = 'MyJavaProject'  // Name of your project
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from repository...'
+                git branch: 'main', url: 'https://github.com/username/my-java-project.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building the project...'
+                sh 'mvn clean install'  // Maven build command
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running unit tests...'
+                sh 'mvn test'  // Run unit tests
+            }
+        }
+
+        stage('Package') {
+            steps {
+                echo 'Packaging the application...'
+                sh 'mvn package'  // Package the application
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                echo 'Archiving build artifacts...'
+                archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'  // Only deploy from the 'main' branch
+            }
+            steps {
+                echo 'Deploying the application...'
+                // Add your deployment steps here, e.g., uploading the JAR file to a server
+                sh 'scp target/my-app.jar user@server:/path/to/deploy'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()  // Clean up the workspace after the pipeline
+        }
+    }
+}

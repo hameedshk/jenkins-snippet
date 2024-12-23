@@ -6,11 +6,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as fsp from 'fs/promises';
 
-let parentDir = '';
+let workspacePath = '';
 const supportedLanguages: string[] = ['csharp','java','python'];
 
 
-function findProjectRoot(startPath: string, markers: string[] = ['package.json', '.git']): string {
+/*function findProjectRoot(startPath: string, markers: string[] = ['package.json', '.git']): string {
 	let currentDir = path.resolve(startPath);
 	while (true) {
 		if (markers.some(marker => fs.existsSync(path.join(currentDir, marker)))) {
@@ -23,7 +23,7 @@ function findProjectRoot(startPath: string, markers: string[] = ['package.json',
 		}
 		currentDir = parentDir;
 	}
-}
+}*/
 
 function getCurrentProgrammingLanguage(context: vscode.ExtensionContext): string {
 	const editor = vscode.window.activeTextEditor;
@@ -45,22 +45,21 @@ function getCurrentProgrammingLanguage(context: vscode.ExtensionContext): string
 	return languageId;
 }
 
-function getJenkinsFileSnippetpath(languageId: string): string {
-	return path.join(parentDir, "src/snippets", languageId, "Jenkinsfile");
+function getJenkinsFileSnippetpath(context: vscode.ExtensionContext,languageId: string): string {
+	const extensionPath= context.extensionPath;
+	return path.join(extensionPath, "snippets", languageId, "Jenkinsfile");
 }
 
-function writetoJenkinsFileSnippet(rootDir: string, snippetFilePath: string) {
+function writetoJenkinsFileSnippet(projectRootDir: string, snippetFilePath: string,jenkinsFilePath:string) {
 	const wsedit = new vscode.WorkspaceEdit();
 
 	//read content of jenkinssnippet
 	const content = fs.readFileSync(snippetFilePath, "utf-8");
-	//create a file 
-	const destinationFilePath=path.join(rootDir,"Jenkinsfile");
-	wsedit.createFile(vscode.Uri.file(destinationFilePath), { ignoreIfExists: true });
-
-	//write to the created file
-	fs.writeFileSync(rootDir, content, 'utf8');
+	//create a file 	
+	wsedit.createFile(vscode.Uri.file(jenkinsFilePath), { ignoreIfExists: true });
 	vscode.workspace.applyEdit(wsedit);
+	//write to the created file
+	fs.writeFileSync(jenkinsFilePath, content, 'utf8');	
 }
 
 // This method is called when your extension is activated
@@ -80,13 +79,22 @@ export function activate(context: vscode.ExtensionContext) {
 		// 1.Get the current language ID
 		const language = getCurrentProgrammingLanguage(context);
 		// 2.get the rootpath of the project
-		const rootDir = findProjectRoot(__dirname);
-		console.log(`Project root directory: ${rootDir}`);
+		const workspaceFolders = vscode.workspace.workspaceFolders;		
+        if (workspaceFolders && workspaceFolders.length > 0) {
+             workspacePath = workspaceFolders[0].uri.fsPath; // Get the first workspace root directory
+            vscode.window.showInformationMessage(`Workspace root: ${workspacePath}`);
+        } else {
+            vscode.window.showErrorMessage('No workspace folder is open.');
+        }
+		//const projectRootDir = rootPath;
+		//const projectRootDir = findProjectRoot(__dirname);
+		const targetFilePath= path.join(workspacePath ,"Jenkinsfile");
+		console.log(`Project root directory: ${workspacePath}`);
 		//3.get the snippet path as per the language
-		const snippetFilePath = getJenkinsFileSnippetpath(language);
+		const snippetFilePath = getJenkinsFileSnippetpath(context,language);
 		//4.insert the detected code snippet in the root folder		
-		writetoJenkinsFileSnippet(rootDir, snippetFilePath);
-		var openPath = vscode.Uri.parse("file:///" + rootDir); //A request file path
+		writetoJenkinsFileSnippet(workspacePath, snippetFilePath,targetFilePath);
+		var openPath = vscode.Uri.parse("file:///" +targetFilePath); //A request file path
 		vscode.workspace.openTextDocument(openPath).then(doc => {
 			vscode.window.showTextDocument(doc);
 		});

@@ -1,0 +1,86 @@
+// designated branch names
+def branch_dev = 'dev'
+def branch_val = 'val'
+def branch_prod = 'main'
+
+def app = "hello-api"
+def mvnCmd = "mvn -B -s /build-config/maven-settings-2f82.xml" //your jenkins file
+def logClaim = "${app}-logs"
+
+pipeline {
+    agent
+         node {
+            label 'maven'  //configure your agent
+        }
+
+     options {
+        timeout(time: 60, unit: 'MINUTES') 
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                 checkout scm
+                 sh 'git branch -a'
+            }
+        }
+
+        stage ('build') {
+            steps{
+                    echo 'Building the project...'
+                 withEnv([
+            'JAVA_HOME=/build-config/openjdk/jdk-11.0.2/',
+            'JAVA_TOOL_OPTIONS=-XX:+UnlockExperimentalVMOptions -Dsun.zip.disableMemoryMapping=true'
+        ]) {
+                sh "${mvnCmd} clean install -fae"
+                junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true            
+        }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running unit tests...'
+                junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
+            }
+        }
+
+        stage('Package') {
+            steps {
+                echo 'Packaging the application...'
+                sh 'mvn package'  // Package the application
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                echo 'Archiving build artifacts...'
+                archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'  // Only deploy from the 'main' branch
+            }
+            steps {
+                echo 'Deploying the application...'
+                // Add your deployment steps here, e.g., uploading the JAR file to a server
+                sh 'scp target/my-app.jar user@server:/path/to/deploy'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()  // Clean up the workspace after the pipeline
+        }
+    }
+}

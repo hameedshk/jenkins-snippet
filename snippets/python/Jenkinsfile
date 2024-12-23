@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    tools {
+        python 'Python3'  // Replace 'Python3' with the name of the Python installation in Jenkins
+    }
+
+    environment {
+        VENV_DIR = '.venv'  // Virtual environment directory
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from repository...'
+                git branch: 'main', url: 'https://github.com/username/my-python-project.git'
+            }
+        }
+
+        stage('Setup Environment') {
+            steps {
+                echo 'Setting up Python virtual environment...'
+                sh '''
+                    python -m venv $VENV_DIR
+                    source $VENV_DIR/bin/activate
+                    pip install --upgrade pip
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing project dependencies...'
+                sh '''
+                    source $VENV_DIR/bin/activate
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                echo 'Running tests...'
+                sh '''
+                    source $VENV_DIR/bin/activate
+                    pytest --junitxml=report.xml
+                '''
+            }
+            post {
+                always {
+                    junit 'report.xml'  // Publish test results
+                }
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                echo 'Archiving test reports and logs...'
+                archiveArtifacts artifacts: '**/*.xml', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()  // Clean up workspace after the pipeline
+        }
+    }
+}
